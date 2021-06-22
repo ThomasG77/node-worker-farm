@@ -36,6 +36,5 @@
     "test": "mocha test/index.js",
     "lint": "eslint lib tests examples"
   },
-  "types": "./index.d.ts",
   "license": "MIT"
 }
