@@ -2,6 +2,7 @@
 const { EventEmitter } = require('events');
 const { expect } = require('chai');
 const { pathToFileURL } = require('url');
+const fs = require('fs');
 const workerFarm = require('worker-farm');
 
 function uniq(arr) {
@@ -88,6 +89,29 @@ function run({ childPath, threaded = true }) {
     let child = this.setup(childPath, ['run0']);
     let [, rnd] = await child.run0();
     expect(rnd).to.be.within(0, 1);
+  });
+
+  it('on child', async function() {
+    if (threaded) {
+      let threadId = null;
+      let child = this.setup({
+        onChild(worker) {
+          threadId = worker.threadId;
+        },
+      }, childPath);
+
+      let [tid] = await child(0);
+      expect(threadId).to.equal(tid);
+    } else {
+      let childPid = null;
+      let child = this.setup({
+        onChild(cp) {
+          childPid = cp.pid;
+        },
+      }, childPath);
+      let [pid] = await child(0);
+      expect(childPid).to.equal(pid);
+    }
   });
 
   // Use the returned pids to check that we're using a single child worker (or 
@@ -388,6 +412,39 @@ function run({ childPath, threaded = true }) {
       expect(err.type).to.equal('TimeoutError');
     });
     return expect;
+
+  });
+
+  it('test max retries after process terminate', async function() {
+
+    let filepath1 = '.retries1';
+    let child1 = this.setup({
+      maxConcurrentWorkers: 1,
+      maxRetries: 5,
+    }, childPath, ['stubborn']);
+    let result = await child1.stubborn(filepath1);
+    expect(result).to.equal(12);
+
+    await this.end(child1);
+    fs.unlinkSync(filepath1);
+
+    let filepath2 = '.retries2';
+    let child2 = this.setup({
+      maxConcurrentWorkers: 1,
+      maxRetries: 3,
+    }, childPath, ['stubborn']);
+
+    try {
+      await child2.stubborn(filepath2);
+    } catch (err) {
+      expect(err.type).to.equal('ProcessTerminatedError');
+      expect(err.message).to.equal('cancel after 3 retries!');
+      await this.end();
+      fs.unlinkSync(filepath2);
+      return;
+    }
+
+    throw new Error('Shouldn\'t get here!');
 
   });
 

@@ -46,7 +46,7 @@ module.exports.block = function() {
 };
 
 // use provided file path to save retries count among terminated workers
-module.exports.stubborn = function(path, callback) {
+module.exports.stubborn = function(path) {
   function isOutdated(path) {
     return ((new Date).getTime() - fs.statSync(path).mtime.getTime()) > 2000;
   }
@@ -59,10 +59,10 @@ module.exports.stubborn = function(path, callback) {
 
   let retry = parseInt(fs.readFileSync(path, 'utf8'));
   if (Number.isNaN(retry))
-    return callback(new Error('file contents is not a number'));
+    throw new Error('file contents is not a number');
 
   if (retry > 4) {
-    callback(null, 12);
+    return 12;
   } else {
     fs.writeFileSync(path, String(retry + 1));
     process.exit(-1);
