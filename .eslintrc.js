@@ -17,12 +17,14 @@ module.exports = {
         "ecmaVersion": 11
     },
     "rules": {
+        "indent": ["error", 2],
         "no-unused-vars": ["error", {
             "vars": "local",
             "args": "none",
             "ignoreRestSiblings": true,
         }],
         "no-empty": ["error", { "allowEmptyCatch": true }],
+        "no-multi-spaces": ["error"],
         "eqeqeq": ["error"],
         "no-caller": ["error"],
         "no-constructor-return": ["error"],
@@ -85,6 +87,7 @@ module.exports = {
             },
         }],
         "no-useless-constructor": ["error"],
+        "one-var": ["error", { "uninitialized": "never" }],
         "no-var": ["error"],
         "object-shorthand": ["error", "always"],
         "prefer-rest-params": ["error"],
