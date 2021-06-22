@@ -2,6 +2,9 @@
   "name": "worker-farm",
   "description": "Distribute processing tasks to child processes with an über-simple API and baked-in durability & custom concurrency options.",
   "version": "2.0.0",
+  "engines": {
+    "node": "^12.x.x"
+  },
   "homepage": "https://github.com/rvagg/node-worker-farm",
   "authors": [
     "Rod Vagg @rvagg <rod@vagg.org> (https://github.com/rvagg)"
@@ -13,6 +16,9 @@
     "farm"
   ],
   "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/rvagg/node-worker-farm.git"
@@ -25,7 +31,7 @@
     "tape": "~4.10.1"
   },
   "scripts": {
-    "test": "node ./tests/run",
+    "test": "node ./tests/run.js",
     "lint": "eslint lib tests"
   },
   "types": "./index.d.ts",

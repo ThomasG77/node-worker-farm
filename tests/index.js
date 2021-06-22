@@ -1,5 +1,5 @@
 'use strict';
-module.exports = function(workerFarm, threaded) {
+module.exports = function(workerFarm, threaded = true) {
 
   const tape = require('tape'),
     child_process = require('child_process'),

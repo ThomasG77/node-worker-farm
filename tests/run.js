@@ -1,8 +1,4 @@
-const test = require('.');
-const workerFarm = require('..');
+const workerFarm = require('worker-farm');
+const test = require('./index.js');
 
-// test(workerFarm);
-try {
-  require('worker_threads');
-  test(workerFarm.threaded, true);
-} catch (e) {}
+test(workerFarm);
