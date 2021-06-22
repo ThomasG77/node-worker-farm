@@ -21,10 +21,12 @@
     "errno": "~0.1.7"
   },
   "devDependencies": {
+    "eslint": "^7.29.0",
     "tape": "~4.10.1"
   },
   "scripts": {
-    "test": "node ./tests/run"
+    "test": "node ./tests/run",
+    "lint": "eslint .eslintrc.js"
   },
   "types": "./index.d.ts",
   "license": "MIT"
