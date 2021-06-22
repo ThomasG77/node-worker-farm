@@ -26,6 +26,63 @@ module.exports.killable = function(id) {
   return [id, pid];
 };
 
+module.exports.err = function([type, message, data = {}]) {
+
+  if (type === 'TypeError') {
+    throw new TypeError(message);
+  }
+
+  let err = new Error(message);
+  Object.keys(data).forEach(key => {
+    err[key] = data[key];
+  });
+  throw err;
+
+};
+
+module.exports.block = function() {
+  // eslint-disable-next-line no-constant-condition
+  while (true);
+};
+
+// use provided file path to save retries count among terminated workers
+module.exports.stubborn = function(path, callback) {
+  function isOutdated(path) {
+    return ((new Date).getTime() - fs.statSync(path).mtime.getTime()) > 2000;
+  }
+
+  // file may not be properly deleted, check if modified no earler than two seconds ago
+  if (!fs.existsSync(path) || isOutdated(path)) {
+    fs.writeFileSync(path, '1');
+    process.exit(-1);
+  }
+
+  let retry = parseInt(fs.readFileSync(path, 'utf8'));
+  if (Number.isNaN(retry))
+    return callback(new Error('file contents is not a number'));
+
+  if (retry > 4) {
+    callback(null, 12);
+  } else {
+    fs.writeFileSync(path, String(retry + 1));
+    process.exit(-1);
+  }
+};
+
 module.exports.uptime = function() {
   return Date.now() - started;
+};
+
+module.exports.transfer = function([one, two], { transfer }) {
+  let sum = 0;
+  for (let buffer of [one, two]) {
+    for (let value of buffer) sum += value;
+  }
+  let arr = new Uint32Array([sum]);
+  transfer(arr.buffer);
+  return arr;
+};
+
+module.exports.shared = function(buffer) {
+  buffer[0] = Math.E;
 };

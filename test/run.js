@@ -1,6 +1,8 @@
 'use strict';
+const { EventEmitter } = require('events');
 const { expect } = require('chai');
 const { pathToFileURL } = require('url');
+const fs = require('fs');
 const workerFarm = require('worker-farm');
 const childPath = require.resolve('./child.js');
 const childURL = pathToFileURL(childPath);
@@ -41,6 +43,21 @@ describe('The worker farm', function() {
         workerFarm.end(child);
         this.child = null;
       }
+    };
+    this.plan = function(n) {
+      let calls = 0;
+      let bus = new EventEmitter();
+      function call(...args) {
+        calls++;
+        if (calls === n) {
+          bus.emit('complete');
+        }
+        return expect(...args);
+      }
+      call.then = cb => {
+        bus.on('complete', () => cb());
+      };
+      return call;
     };
   });
 
@@ -226,6 +243,170 @@ describe('The worker farm', function() {
     let [, rnd] = await child(0);
     expect(rnd).to.be.within(0, 1);
     await this.end(child);
+  });
+
+  it('call timeout test', async function() {
+
+    const expect = this.plan(6);
+    let child = this.setup({
+      maxCallTime: 250,
+      maxConcurrentWorkers: 1,
+    }, childPath);
+
+    // Should come back ok.
+    child(50).then(([pid, rnd]) => {
+      expect(rnd).to.be.within(0, 1);
+    });
+
+    // Should come back ok.
+    child(50).then(([pid, rnd]) => {
+      expect(rnd).to.be.within(0, 1);
+    });
+
+    // Should die
+    child(500).catch(err => {
+      expect(err.type).to.equal('TimeoutError');
+    });
+
+    // Should die
+    child(1000).catch(err => {
+      expect(err.type).to.equal('TimeoutError');
+    });
+
+    // Should die event htough it is only a 100ms task, it'll get caught up in 
+    // a dying worker.
+    setTimeout(() => {
+      child(100).catch(err => {
+        expect(err.type).to.equal('TimeoutError');
+      });
+    }, 200);
+
+    // Should be ok, new worker.
+    setTimeout(() => {
+      child(50).then(([pid, rnd]) => {
+        expect(rnd).to.be.within(0, 1);
+      });
+    }, 400);
+
+    return expect;
+
+  });
+
+  it('test error passing', async function() {
+
+    const expect = this.plan(9);
+    let child = this.setup(childPath, ['err']);
+
+    child.err(['Error', 'this is an Error']).catch(err => {
+      expect(err).to.be.an.instanceOf(Error);
+      expect(err.type).to.equal('Error');
+      expect(err.message).to.equal('this is an Error');
+    });
+
+    child.err(['TypeError', 'this is a TypeError']).catch(err => {
+      expect(err).to.be.an.instanceOf(TypeError);
+      expect(err.type).to.equal('TypeError');
+      expect(err.message).to.equal('this is a TypeError');
+    });
+
+    child.err(['Error', 'this is an Error with custom props', {
+      foo: 'bar',
+      baz: 1,
+    }]).catch(err => {
+      expect(err).to.be.an.instanceOf(Error);
+      expect(err.foo).to.equal('bar');
+      expect(err.baz).to.equal(1);
+    });
+
+    return expect;
+
+  });
+
+  it('test maxConcurrentCalls', async function() {
+    const expect = this.plan(7);
+    let child = this.setup({ maxConcurrentCalls: 5 }, childPath);
+    child(50).then(() => expect(true).to.be.ok);
+    child(50).then(() => expect(true).to.be.ok);
+    child(50).then(() => expect(true).to.be.ok);
+    child(50).then(() => expect(true).to.be.ok);
+    child(50).then(() => expect(true).to.be.ok);
+    child(50).catch(err => {
+      expect(err.type).to.equal('MaxConcurrentCallsError');
+    });
+    child(50).catch(err => {
+      expect(err.type).to.equal('MaxConcurrentCallsError');
+    });
+    return expect;
+  });
+
+  it('test maxConcurrentCalls + queue', async function() {
+
+    const expect = this.plan(9);
+    let child = this.setup({
+      maxConcurrentCalls: 4,
+      maxConcurrentWorkers: 2,
+      maxConcurrentCallsPerWorker: 1,
+    }, childPath);
+
+    child(20).then(() => expect(true).to.be.ok);
+    child(20).then(() => expect(true).to.be.ok);
+    child(300).then(() => expect(true).to.be.ok);
+    child(300).then(() => expect(true).to.be.ok);
+    child(20).catch(err => {
+      expect(err.type).to.equal('MaxConcurrentCallsError');
+    });
+    child(20).catch(err => {
+      expect(err.type).to.equal('MaxConcurrentCallsError');
+    });
+
+    // Cross fingers and hope the two short jobs have ended.
+    await this.delay(250);
+    child(20).then(() => expect(true).to.be.ok);
+    child(20).then(() => expect(true).to.be.ok);
+    child(20).catch(err => {
+      expect(err.type).to.equal('MaxConcurrentCallsError');
+    });
+
+    return expect;
+
+  });
+
+  it('test timeout kill', async function() {
+
+    const expect = this.plan(2);
+    let child = this.setup({
+      maxCallTime: 250,
+      maxConcurrentWorkers: 1,
+    }, childPath, ['block']);
+    child.block().catch(err => {
+      expect(err).to.be.ok;
+      expect(err.type).to.equal('TimeoutError');
+    });
+    return expect;
+
+  });
+
+  it('pass a transferList when running in threaded mode', async function() {
+
+    let child = this.setup(childPath, ['transfer']);
+    let one = new Float64Array([0, 1, 2]);
+    let two = new Uint8Array([3, 4, 5]);
+
+    let result = await child.transfer([one, two], [one.buffer, two.buffer]);
+    expect(one.byteLength).to.equal(0);
+    expect(two.byteLength).to.equal(0);
+    expect(result[0]).to.equal(15);
+
+  });
+
+  it('modify a shared array buffer', async function() {
+
+    let child = this.setup(childPath, ['shared']);
+    let arr = new Float64Array(new SharedArrayBuffer(8));
+    arr[0] = Math.PI;
+    await child.shared(arr);
+    expect(arr[0]).to.equal(Math.E);
+
   });
 
 });
