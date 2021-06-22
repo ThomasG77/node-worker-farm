@@ -14,7 +14,8 @@ module.exports = {
         ".eslintrc.js",
     ],
     "parserOptions": {
-        "ecmaVersion": 11
+        "ecmaVersion": 11,
+        "sourceType": "module",
     },
     "rules": {
         "indent": ["error", 2],
