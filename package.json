@@ -33,7 +33,7 @@
     "tape": "~4.10.1"
   },
   "scripts": {
-    "test": "node ./tests/run.js",
+    "test": "mocha",
     "lint": "eslint lib tests examples"
   },
   "types": "./index.d.ts",

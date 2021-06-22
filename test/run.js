@@ -2,16 +2,21 @@
 const { EventEmitter } = require('events');
 const { expect } = require('chai');
 const { pathToFileURL } = require('url');
-const fs = require('fs');
 const workerFarm = require('worker-farm');
-const childPath = require.resolve('./child.js');
-const childURL = pathToFileURL(childPath);
 
 function uniq(arr) {
   return [...new Set(arr)];
 }
 
-describe('The worker farm', function() {
+module.exports = function wrap(opts) {
+  return function() {
+    return run.call(this, opts);
+  };
+};
+
+function run({ childPath, threaded = true }) {
+
+  const childURL = pathToFileURL(childPath);
 
   this.slow(10000);
   this.timeout(0);
@@ -409,4 +414,4 @@ describe('The worker farm', function() {
 
   });
 
-});
+}
