@@ -6,7 +6,7 @@ const started = Date.now();
 // Check if we're running as a worker thread or child process. It doesn't make 
 // much sense to send along the process id for worker threads because it will 
 // be the same as the one in the main thread.
-let pid = isMainThread ? process.id : threadId;
+let pid = isMainThread ? process.pid : threadId;
 
 module.exports = async function(timeout) {
   if (timeout) {

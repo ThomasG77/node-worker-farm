@@ -3,21 +3,23 @@ const { EventEmitter } = require('events');
 const { expect } = require('chai');
 const { pathToFileURL } = require('url');
 const fs = require('fs');
-const workerFarm = require('worker-farm');
+const workerFarmModule = require('worker-farm');
 
 function uniq(arr) {
   return [...new Set(arr)];
 }
 
-module.exports = function wrap(opts) {
+module.exports = function wrap(...args) {
   return function() {
-    return run.call(this, opts);
+    return run.call(this, ...args);
   };
 };
 
-function run({ childPath, threaded = true }) {
+function run(childPath, cp = false) {
 
   const childURL = pathToFileURL(childPath);
+  const threaded = !cp;
+  const workerFarm = cp ? workerFarmModule.cp : workerFarmModule;
 
   this.slow(10000);
   this.timeout(0);
@@ -448,27 +450,33 @@ function run({ childPath, threaded = true }) {
 
   });
 
-  it('pass a transferList when running in threaded mode', async function() {
+  // Only run the following tests in a threaded environment. Transfer lists and 
+  // SharedArrayBuffers don't work with child processes.
+  if (threaded) {
 
-    let child = this.setup(childPath, ['transfer']);
-    let one = new Float64Array([0, 1, 2]);
-    let two = new Uint8Array([3, 4, 5]);
+    it('pass a transferList when running in threaded mode', async function() {
 
-    let result = await child.transfer([one, two], [one.buffer, two.buffer]);
-    expect(one.byteLength).to.equal(0);
-    expect(two.byteLength).to.equal(0);
-    expect(result[0]).to.equal(15);
+      let child = this.setup(childPath, ['transfer']);
+      let one = new Float64Array([0, 1, 2]);
+      let two = new Uint8Array([3, 4, 5]);
 
-  });
+      let result = await child.transfer([one, two], [one.buffer, two.buffer]);
+      expect(one.byteLength).to.equal(0);
+      expect(two.byteLength).to.equal(0);
+      expect(result[0]).to.equal(15);
 
-  it('modify a shared array buffer', async function() {
+    });
 
-    let child = this.setup(childPath, ['shared']);
-    let arr = new Float64Array(new SharedArrayBuffer(8));
-    arr[0] = Math.PI;
-    await child.shared(arr);
-    expect(arr[0]).to.equal(Math.E);
+    it('modify a shared array buffer', async function() {
 
-  });
+      let child = this.setup(childPath, ['shared']);
+      let arr = new Float64Array(new SharedArrayBuffer(8));
+      arr[0] = Math.PI;
+      await child.shared(arr);
+      expect(arr[0]).to.equal(Math.E);
+
+    });
+
+  }
 
 }
