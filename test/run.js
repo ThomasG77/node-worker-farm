@@ -3,6 +3,8 @@ const { EventEmitter } = require('events');
 const { expect } = require('chai');
 const { pathToFileURL } = require('url');
 const fs = require('fs');
+const os = require('os');
+const child_process = require('child_process');
 const workerFarmModule = require('worker-farm');
 
 function uniq(arr) {
@@ -474,6 +476,49 @@ function run(childPath, cp = false) {
       arr[0] = Math.PI;
       await child.shared(arr);
       expect(arr[0]).to.equal(Math.E);
+
+    });
+
+  } else {
+
+    // Following tests only need to be run for child processes.
+    it('custom arguments can be passed to "fork"', async function() {
+
+      let cwd = fs.realpathSync(os.tmpdir());
+      let workerOptions = {
+        cwd,
+        execArgv: ['--expose-gc'],
+      };
+      let child = this.setup({
+        maxConcurrentWorkers: 1,
+        maxRetries: 5,
+        workerOptions,
+      }, childPath, ['args']);
+
+      let result = await child.args();
+      expect(result.execArgv[0]).to.equal('--expose-gc');
+      expect(result.cwd).to.equal(cwd);
+    
+    });
+
+    it('ensure --inspect not propagated to children', function(done) {
+
+      let script = __dirname + '/debug.js';
+      let debugArg = '--inspect';
+
+      let child = child_process.spawn(process.execPath, [debugArg, script]);
+      let stdout = '';
+
+      child.stdout.on('data', data => {
+        stdout += String(data);
+      });
+
+      child.on('close', code => {
+        expect(code).to.equal(0);
+        expect(stdout.indexOf('FINISHED')).to.be.above(-1);
+        expect(stdout.indexOf('--debug')).to.equal(-1);
+        done();
+      });
 
     });
 

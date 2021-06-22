@@ -15,6 +15,14 @@ module.exports = async function(timeout) {
   return [pid, Math.random(), timeout];
 };
 
+module.exports.args = function() {
+  return {
+    argv: process.argv,
+    cwd: process.cwd(),
+    execArgv: process.execArgv,
+  };
+};
+
 module.exports.run0 = function() {
   return module.exports(0);
 };
