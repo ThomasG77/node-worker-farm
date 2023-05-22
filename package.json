@@ -3,7 +3,7 @@
   "description": "Distribute processing tasks to child processes with an über-simple API and baked-in durability & custom concurrency options.",
   "version": "2.0.0",
   "engines": {
-    "node": "^12.22.x"
+    "node": ">=12.22.x"
   },
   "homepage": "https://github.com/rvagg/node-worker-farm",
   "authors": [
